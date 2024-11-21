@@ -1,7 +1,7 @@
 # zoomdata.js - v1.0
 (doc coming soon)
 
-<script src="https://auer404.github.io/zoomdata-js/zoomdata.js"></script>
+<script src='https://auer404.github.io/zoomdata-js/zoomdata.js'></script>
 
 ---
 
