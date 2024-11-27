@@ -454,6 +454,10 @@ function create_zoomdata(target_element, options = {}) {
 
             }
 
+            obj.zoomed = function(value) {
+                return zd.zoomed(value);
+            }
+
             if (param_obj.attach_to) {
                 param_obj.attach_to.zoomdata = obj;
                 obj.owner = param_obj.attach_to;

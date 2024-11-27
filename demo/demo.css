@@ -15,20 +15,52 @@ section:has(#intro_container) {
     justify-content:center;
 }
 
+section.single_col {
+    border-top:1px dotted #CCC;
+    padding:10px;
+    box-sizing:border-box;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+}
+
+section.single_col div {
+    max-width:800px;
+}
+
 .txt_column {
     width:50%;
     padding:10px;
-    border-top:1px dotted #EEEEEE;
+    border-top:1px dotted #CCC;
     box-sizing:border-box;
 }
 
 h3 {
-    font-size:1em; color:#CCCCCC;
+    font-size:1em; color:#CCC;
 }
 
 pre {
     white-space:pre-wrap;
     padding-bottom:1.5em;
+}
+
+code {
+    color:#333;
+}
+
+code a {
+    color:inherit;
+    font-weight:bold;
+    text-decoration:none;
+    outline:none;
+}
+
+code a:hover {
+    text-decoration:underline;
+}
+
+code b {
+    color:black;
 }
 
 code .comment {
@@ -41,11 +73,12 @@ pre:not(:last-child) {
 
 .example_container {
     width:50%;
-    background-color:#EEEEEE;
+    background-color:#CCC;
     position:relative;
     overflow:hidden;
     min-height:100vh;
     padding:10px; box-sizing: border-box;
+    border-top:1px dotted white;
     color:#FFFFFF;
     user-select:none;
 }
@@ -55,13 +88,17 @@ pre:not(:last-child) {
     background-color:white;
     border-radius:50%;
     display:flex;
+    flex-direction:column;
+    text-align:center;
     align-items:center;
     justify-content:center;
-    color:#EEEEEE;
+    color:#CCC;
+    box-sizing: border-box;
+    padding:10px;
 }
 
 #intro_container {
-    background-color:#EEEEEE;
+    background-color:#CCC;
     position:relative;
     overflow:hidden;
     user-select:none;
@@ -82,7 +119,7 @@ pre:not(:last-child) {
     flex-direction:column;
     justify-content:center;
     align-items:center;
-    color:gray;
+    color:#CCC;
     font-size:18px;
 }
 
@@ -102,5 +139,22 @@ pre:not(:last-child) {
     width:100%; height:0; left:0; top:50%;
     border-top:1px dotted white;
     transform:translateY(-50%);
+}
+
+#example02 .child , #example04 .child {
+    transform:translateY(-50%);
+    aspect-ratio:1/1;
+}
+
+#example03 {
+    background-color:#CCC;
+    border-top:1px dotted white;
+}
+
+#example04 .child {
+    background-color:transparent;
+    color:white;
+    border:3px solid white;
+    font-size:15px;
 }
 

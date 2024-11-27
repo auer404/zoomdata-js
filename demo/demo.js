@@ -73,9 +73,12 @@ let intro_zd = create_zoomdata(
             }
         }
 
+
 /************ BASIC USAGE SECTION **************/
 
-let zd01 = create_zoomdata( document.querySelector("#example01") );
+let zd01 = create_zoomdata(
+    document.querySelector("#example01"), {prevent_scroll_on_mousewheel:"always"}
+);
 
 let child01 = document.querySelector("#example01 .child");
 
@@ -95,3 +98,103 @@ zd01.onupdate = function(){
 }
 
 zd01.onupdate();
+
+
+/************ PERCENTAGE SECTION **************/
+
+let zd02 = create_zoomdata(
+    document.querySelector("#example02"), {prevent_scroll_on_mousewheel:"always"}
+);
+
+let child02 = document.querySelector("#example02 .child");
+
+zd02.register_object({
+    attach_to: child02,
+    x: "25%",
+    y: "50%",
+    width: "50%"
+});
+
+zd02.onupdate = function(){
+    child02.style.left = child02.zoomdata.percent.x + "%";
+    child02.style.top = child02.zoomdata.percent.y + "%";
+    child02.style.width = child02.zoomdata.percent.width + "%";
+}
+
+zd02.onupdate();
+
+
+/************ CANVAS SECTION **************/
+
+let cnv = document.querySelector("#example03");
+resize_canvas();
+window.addEventListener("resize", resize_canvas);
+function resize_canvas() {
+    cnv.height = cnv.parentElement.offsetHeight;
+    // cnv.width = window.innerWidth / 2;
+    cnv.width = document.querySelector("#example02").offsetWidth;
+}
+
+let zd03 = create_zoomdata(
+    document.querySelector("#example03"), {prevent_scroll_on_mousewheel:"always"}
+);
+
+
+let child03_zd = zd03.register_object({
+    x: "25%",
+    y: "50%",
+    width: "50%"
+});
+
+let ctx = cnv.getContext("2d");
+
+ctx.fillStyle = "#CCC";
+ctx.strokeStyle = "#FFF";
+
+zd03.onupdate = function(){
+    ctx.fillRect(0 , 0 , ctx.canvas.width , ctx.canvas.height);
+    ctx.strokeRect(child03_zd.x , child03_zd.y - child03_zd.width / 2 , child03_zd.width , child03_zd.width);
+}
+
+zd03.onupdate();
+
+
+/************ ZOOMFACTOR SECTION **************/
+
+let zd04 = create_zoomdata(
+    document.querySelector("#example04"), {
+        prevent_scroll_on_mousewheel:"always",
+        max_zoomfactor:5
+    }
+);
+
+let children04 = document.querySelectorAll("#example04 .child");
+
+zd04.register_object({
+    attach_to: children04[0],
+    x: "37.5%",
+    y: "40%",
+    width: "25%"
+});
+
+zd04.register_object({
+    attach_to: children04[1],
+    x: "37.5%",
+    y: "60%",
+    width: "25%"
+});
+
+zd04.onupdate = function(){
+
+    for (child of children04) {
+        child.style.left = child.zoomdata.percent.x + "%";
+        child.style.top = child.zoomdata.percent.y + "%";
+        child.style.width = child.zoomdata.percent.width + "%";
+    }
+    
+    children04[1].style.borderWidth = children04[1].zoomdata.zoomed(3) + "px";
+    children04[1].style.fontSize = children04[1].zoomdata.zoomed(15) + "px";
+    children04[1].style.padding = children04[1].zoomdata.zoomed(10) + "px";
+}
+
+zd04.onupdate();

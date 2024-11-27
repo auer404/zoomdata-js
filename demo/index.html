@@ -39,6 +39,16 @@
 
     </section>
 
+    <section class="single_col">
+
+        <div>
+
+            <code>&lt;script src="<a href="https://auer404.github.io/zoomdata-js/zoomdata.js" target="_blank">https://auer404.github.io/zoomdata-js/zoomdata.js</a>"&gt;&lt;/script&gt;</code>
+
+        </div>
+
+    </section>
+
     <section>
 
         <div class="txt_column">
@@ -65,24 +75,24 @@
 
             <h3>JS</h3>
 
-            <pre><code>let zd = create_zoomdata( document.querySelector("#container") );
+            <pre><code>let zd = <b>create_zoomdata(</b> document.querySelector("#container") <b>)</b>;
 
 let child = document.querySelector("#child");
 
-zd.register_object({
+zd.<b>register_object(</b>{
     attach_to: child,
     x: 100,
     y: 100,
     width: 200,
     height: 200
-});
+}<b>)</b>;
 
-zd.onupdate = function(){
-    child.style.left = child.zoomdata.x + "px";
-    child.style.top = child.zoomdata.y + "px";
-    child.style.width = child.zoomdata.width + "px";
-    child.style.height = child.zoomdata.height + "px";
-} <span class="comment">// will be fired after every zoom or move...</span>
+zd.<b>onupdate = function(){</b>
+    child.style.left = child.<b>zoomdata.x</b> + "px";
+    child.style.top = child.<b>zoomdata.y</b> + "px";
+    child.style.width = child.<b>zoomdata.width</b> + "px";
+    child.style.height = child.<b>zoomdata.height</b> + "px";
+<b>}</b> <span class="comment">// will be fired after every zoom or move...</span>
 
 <span class="comment">// ...but should be called manually to "draw" the initial state :</span>
 zd.onupdate();</code></pre>
@@ -90,16 +100,159 @@ zd.onupdate();</code></pre>
         </div>
 
         <div class="example_container" id="example01">
-            #container (mousewheel to zoom)
+            #container<br><small>(mousewheel to zoom, drag around once zoomed)</small>
             <div class="child">#child</div>
         </div>
 
     </section>
 
     <section>
+
         <div class="txt_column">
-            <h2>More to come - doc under construction</h2>
+
+            <h2>Using percent units :</h2>
+
+            <h3>CSS</h3>
+
+            <pre><code>#child {
+    position:absolute;
+    transform:translateY(-50%);
+    aspect-ratio:1/1;
+}</code></pre>
+
+            <h3>JS</h3>
+
+            <pre><code>zd.register_object({
+    attach_to: child,
+    x: <b>"25%"</b>,
+    y: <b>"50%"</b>,
+    width: <b>"50%"</b>
+});
+
+zd.onupdate = function(){
+    child.style.left = child.zoomdata.<b>percent</b>.x + <b>"%"</b>;
+    child.style.top = child.zoomdata.<b>percent</b>.y + <b>"%"</b>;
+    child.style.width = child.zoomdata.<b>percent</b>.width + <b>"%"</b>;
+}</code></pre>
+
         </div>
+
+        <div class="example_container" id="example02">
+
+            <div class="child">centered, 1/2 container width</div>
+        </div>
+
+    </section>
+
+    <section>
+
+        <div class="txt_column">
+
+            <h2>Registering unattached objects :</h2>
+
+            <h3>HTML</h3>
+
+            <pre><code>&lt;canvas id="container"&gt;&lt;/canvas&gt;</code></pre>
+
+            <h3>JS</h3>
+
+            <pre><code>let ctx = document.querySelector("#container").getContext("2d");
+ctx.fillStyle = "#CCC";
+ctx.strokeStyle = "#FFF";
+
+let zd = create_zoomdata( document.querySelector("#container") );
+
+<b>let child_zd =</b> zd.register_object({
+    x: "25%",
+    y: "50%",
+    width: "50%"
+});
+
+zd.onupdate = function(){
+
+    ctx.fillRect(0 , 0 , ctx.canvas.width , ctx.canvas.height);
+
+    ctx.strokeRect(
+        <b>child_zd</b>.x,
+        <b>child_zd</b>.y - <b>child_zd</b>.width / 2,
+        <b>child_zd</b>.width,
+        <b>child_zd</b>.width
+    );
+
+}</code></pre>
+
+        </div>
+
+        <canvas id="example03"></canvas>
+
+    </section>
+
+    <section>
+
+        <div class="txt_column">
+
+            <h2>Zoom-factor-based modifications :</h2>
+
+            <h3>CSS</h3>
+
+            <pre><code>.child {
+    <b>border-width:3px;
+    font-size:15px;</b>
+    position:absolute;
+    transform:translateY(-50%);
+    aspect-ratio:1/1;
+}</code></pre>
+
+            <h3>JS</h3>
+
+            <pre><code>let children = document.querySelectorAll("#container .child");
+            
+zd.register_object({
+    attach_to: children[0],
+    x: "37.5%",
+    y: "40%",
+    width: "25%"
+});
+
+zd.register_object({
+    attach_to: children[1],
+    x: "37.5%",
+    y: "60%",
+    width: "25%"
+});
+
+zd.onupdate = function(){
+
+    for (child of children) {
+        child.style.left = child.zoomdata.percent.x + "%";
+        child.style.top = child.zoomdata.percent.y + "%";
+        child.style.width = child.zoomdata.percent.width + "%";
+    }
+
+    children[1].style.borderWidth = children[1].zoomdata.<b>zoomed(</b>3<b>)</b> + "px";
+    children[1].style.fontSize = children[1].zoomdata.<b>zoomed(</b>15<b>)</b> + "px";
+
+}</code></pre>
+
+        </div>
+
+        <div class="example_container" id="example04">
+            <div class="child">position / dimensions only</div>
+            <div class="child">complete zoom effect</div>
+        </div>
+
+    </section>
+
+    <section class="single_col">
+
+        <div>
+
+            <h2>More to come</h2>
+
+            <p>Doc under construction</p>
+
+        </div>
+
     </section>
 
     <script src="../zoomdata.js"></script>
