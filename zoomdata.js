@@ -14,28 +14,35 @@ function create_zoomdata(target_element, options = {}) {
         dezoom_origin_x: 0, dezoom_origin_y: 0,
         relative_dezoom_origin_x: 0, relative_dezoom_origin_y: 0,
         zoom_timeout: false,
-        mouse_down: false, drag_key_down: false,
+        mouse_down: false, drag_key_down: false, zoom_key_down: false,
         dragstart_mouse_x: 0, dragstart_mouse_y: 0,
         dragstart_x: 0, dragstart_y: 0,
-        objects: [], objects_to_update: [],
+        objects: [], objects_to_update: [], resize_sensitive_objects: [],
         options: options,
 
         setup: function () {
-            this.height = this.owner.offsetHeight * this.zoomfactor;
-            this.width = this.owner.offsetWidth * this.zoomfactor;
+            this.height = this.owner.getBoundingClientRect().height * this.zoomfactor;
+            this.width = this.owner.getBoundingClientRect().width * this.zoomfactor;
 
             if (this.options.mouse_based_zoom_origin == false || (this.options.zoom_on_mousewheel == false && this.options.mouse_based_zoom_origin != true)) {
-                this.zoom_origin_x = Math.round(this.owner.offsetWidth / 2);
-                this.zoom_origin_y = Math.round(this.owner.offsetHeight / 2);
+                this.zoom_origin_x = Math.round(this.owner.getBoundingClientRect().width / 2);
+                this.zoom_origin_y = Math.round(this.owner.getBoundingClientRect().height / 2);
             } else {
                 this.zoom_origin_x = this.mouse_x;
                 this.zoom_origin_y = this.mouse_y;
             }
 
-            this.relative_zoom_origin_x = this.zoom_origin_x / this.owner.offsetWidth;
-            this.relative_zoom_origin_y = this.zoom_origin_y / this.owner.offsetHeight;
+            this.relative_zoom_origin_x = this.zoom_origin_x / this.owner.getBoundingClientRect().width;
+            this.relative_zoom_origin_y = this.zoom_origin_y / this.owner.getBoundingClientRect().height;
 
+            this.owner.addEventListener("mouseenter", this.update_mouse_xy.bind(this));
             this.owner.addEventListener("mousemove", this.update_mouse_xy.bind(this));
+
+            this.owner.addEventListener("mouseleave", function () {
+                if (this.options.mouse_based_zoom_origin != false && this.options.zoom_on_mousewheel != false) {
+                    this.set_zoom_origin(0, 0);
+                }
+            }.bind(this));
 
             if (this.options.zoom_on_mousewheel != false) {
                 this.owner.addEventListener("mousewheel", function (e) {
@@ -45,8 +52,17 @@ function create_zoomdata(target_element, options = {}) {
                     }
 
                     zd.update_mouse_xy.bind(zd)(e);
-                    zd.zoom(zd.zoomfactor + e.deltaY * -0.05);
-                }, { passive: true });
+
+                    if (zd.zoom_key_down || !zd.options.zoom_key) {
+                        if (zd.zoom(zd.zoomfactor + e.deltaY * -0.05) && zd.options.prevent_scroll_on_mousewheel != false) {
+                            e.preventDefault();
+                        }
+                        if (zd.options.prevent_scroll_on_mousewheel == "always") {
+                            e.preventDefault();
+                        }
+                    }
+
+                });
             }
 
             this.owner.addEventListener("mousedown", function () {
@@ -82,6 +98,12 @@ function create_zoomdata(target_element, options = {}) {
                             zd.auto_cursor("grabbing", "drag");
                             zd.refresh_drag_coords();
                         }
+                        zd.ondragkeydown();
+                    }
+                    if (e.code == zd.options.zoom_key || e.key == zd.options.zoom_key) {
+                        zd.zoom_key_down = true;
+                        zd.auto_cursor("zoom-in", "zoom");
+                        zd.onzoomkeydown();
                     }
                 });
 
@@ -89,6 +111,12 @@ function create_zoomdata(target_element, options = {}) {
                     if (e.code == zd.options.drag_key || e.key == zd.options.drag_key) {
                         zd.drag_key_down = false;
                         zd.auto_cursor("", "drag");
+                        zd.ondragkeyup();
+                    }
+                    if (e.code == zd.options.zoom_key || e.key == zd.options.zoom_key) {
+                        zd.zoom_key_down = false;
+                        zd.auto_cursor("", "zoom");
+                        zd.onzoomkeyup();
                     }
                 });
 
@@ -97,6 +125,7 @@ function create_zoomdata(target_element, options = {}) {
             if (this.options.allow_drag != false) {
 
                 this.owner.addEventListener("mousemove", function () {
+
                     if (zd.mouse_down && (zd.drag_key_down || !zd.options.drag_key)) {
 
                         let distance_x = zd.mouse_x - zd.dragstart_mouse_x;
@@ -112,23 +141,39 @@ function create_zoomdata(target_element, options = {}) {
 
             }
 
+            new ResizeObserver(function () {
+
+                zd.update_zoom_values();
+
+                if (zd.options.auto_update_objects != false) {
+
+                    for (obj of zd.resize_sensitive_objects) {
+                        obj.update_zoom_values();
+                    }
+                }
+
+                zd.onresizeowner();
+
+            }).observe(this.owner);
+
         },
 
         set_zoom_origin: function (x = false, y = false) {
-            if (x) {
+            if (x !== false) {
                 this.zoom_origin_x = x;
             }
-            if (y) {
+            if (y !== false) {
                 this.zoom_origin_y = y;
             }
-            if (x || y) {
+            if (x !== false || y !== false) {
                 this.update_relative_zoom_origin_xy();
             }
         },
 
         update_mouse_xy: function (e) {
-            this.mouse_x = e.clientX - this.owner.offsetLeft;
-            this.mouse_y = e.clientY - this.owner.offsetTop;
+
+            this.mouse_x = e.clientX - this.owner.getBoundingClientRect().x;
+            this.mouse_y = e.clientY - this.owner.getBoundingClientRect().y;
 
             if (this.mouse_x < this.x) {
                 this.mouse_x = this.x;
@@ -155,10 +200,11 @@ function create_zoomdata(target_element, options = {}) {
         },
 
         update_dezoom_origin_xy: function () {
-            this.dezoom_origin_x = (- this.x * this.owner.offsetWidth) / (this.width - this.owner.offsetWidth);
-            this.dezoom_origin_y = (- this.y * this.owner.offsetHeight) / (this.height - this.owner.offsetHeight);
-            this.relative_dezoom_origin_x = (this.dezoom_origin_x - this.x) / this.width;
-            this.relative_dezoom_origin_y = (this.dezoom_origin_y - this.y) / this.height;
+
+            this.dezoom_origin_x = (- this.x * this.owner.getBoundingClientRect().width) / (this.width - this.owner.getBoundingClientRect().width) || 0;
+            this.dezoom_origin_y = (- this.y * this.owner.getBoundingClientRect().height) / (this.height - this.owner.getBoundingClientRect().height) || 0;
+            this.relative_dezoom_origin_x = (this.dezoom_origin_x - this.x) / this.width || 0;
+            this.relative_dezoom_origin_y = (this.dezoom_origin_y - this.y) / this.height || 0;
         },
 
         update_zoomfactor: function (value) {
@@ -185,8 +231,8 @@ function create_zoomdata(target_element, options = {}) {
 
         update_zoom_values: function () {
 
-            this.width = this.owner.offsetWidth * this.zoomfactor;
-            this.height = this.owner.offsetHeight * this.zoomfactor;
+            this.width = this.owner.getBoundingClientRect().width * this.zoomfactor;
+            this.height = this.owner.getBoundingClientRect().height * this.zoomfactor;
 
             let origin_x, origin_y, rel_origin_x, rel_origin_y;
 
@@ -227,7 +273,7 @@ function create_zoomdata(target_element, options = {}) {
         },
 
         zoom: function (new_zoomfactor) {
-            
+
             let prev_zoomfactor = this.zoomfactor;
 
             if (this.set_zoomfactor(new_zoomfactor)) {
@@ -238,13 +284,23 @@ function create_zoomdata(target_element, options = {}) {
                     this.auto_cursor("zoom-out", "zoom");
                 }
                 this.zoom_timeout = setTimeout(function () {
-                    zd.auto_cursor("", "zoom");
+                    if (!zd.zoom_key_down || !zd.options.zoom_key) {
+                        zd.auto_cursor("", "zoom");
+                    } else {
+                        zd.auto_cursor("zoom-in", "zoom");
+                    }
                 }, 250);
                 this.update_zoom_values();
 
                 this.update_objects();
                 this.onupdate();
+                return true;
             }
+            return false;
+        },
+
+        zoomed: function (value = 1) {
+            return value * this.zoomfactor;
         },
 
         move_to: function (new_x = false, new_y = false, overflow_callback = function () { }) {
@@ -314,45 +370,87 @@ function create_zoomdata(target_element, options = {}) {
 
         },
 
+        check_percent: function (input, dimension) {
+            if (typeof input == "string" && input.indexOf("%") != -1) {
+                let splitted = input.split("%");
+                let val = Number(splitted[0]);
+                return {
+                    pixels: val * dimension / 100,
+                    percent: val
+                };
+            }
+            return {
+                pixels: input,
+                percent: false
+            };
+        },
+
         register_object: function (param_obj) {
             let obj = {}
 
-            if (param_obj.use_parent_coords === true) {
+            obj.multiplicator = param_obj.multiplicator || 1;
 
-                obj.base_x = 0;
-                obj.base_y = 0;
-                obj.base_width = zd.width;
-                obj.base_height = zd.height;
+            let x_check = zd.check_percent(param_obj.x, zd.owner.getBoundingClientRect().width);
+            let y_check = zd.check_percent(param_obj.y, zd.owner.getBoundingClientRect().height);
+            let w_check = zd.check_percent(param_obj.width, zd.owner.getBoundingClientRect().width)
+            let h_check = zd.check_percent(param_obj.height, zd.owner.getBoundingClientRect().height);
 
-                obj.update_zoom_values = function () {
+            obj.base_x = x_check.pixels || 0;
+            obj.base_y = y_check.pixels || 0;
+            obj.base_width = w_check.pixels || 0;
+            obj.base_height = h_check.pixels || 0;
 
-                    this.x = zd.x;
-                    this.y = zd.y;
-                    this.width = zd.width;
-                    this.height = zd.height;
+            obj.x = obj.base_x;
+            obj.y = obj.base_y;
+            obj.width = obj.base_width;
+            obj.height = obj.base_height;
 
+            obj.variable_x = x_check.percent;
+            obj.variable_y = y_check.percent;
+            obj.variable_width = w_check.percent;
+            obj.variable_height = h_check.percent;
+
+            obj.percent = {
+                x: null,
+                y: null,
+                width: null,
+                height: null
+            }
+
+            obj.update_percent_values = function () {
+                this.percent.x = this.x * 100 / zd.owner.getBoundingClientRect().width;
+                this.percent.y = this.y * 100 / zd.owner.getBoundingClientRect().height;
+                this.percent.width = this.width * 100 / zd.owner.getBoundingClientRect().width;
+                this.percent.height = this.height * 100 / zd.owner.getBoundingClientRect().height;
+            }
+
+            obj.update_percent_values();
+
+            obj.apply_multiplicator = function (value) {
+                return 1 + this.multiplicator * (value - 1);
+            }
+
+            obj.update_zoom_values = function () {
+
+                if (obj.variable_x) {
+                    obj.base_x = obj.variable_x * zd.owner.getBoundingClientRect().width / 100;
+                }
+                if (obj.variable_y) {
+                    obj.base_y = obj.variable_y * zd.owner.getBoundingClientRect().height / 100;
+                }
+                if (obj.variable_width) {
+                    obj.base_width = obj.variable_width * zd.owner.getBoundingClientRect().width / 100;
+                }
+                if (obj.variable_height) {
+                    obj.base_height = obj.variable_height * zd.owner.getBoundingClientRect().height / 100;
                 }
 
-                obj.update_zoom_values();
+                this.width = Math.round(this.base_width * this.apply_multiplicator(zd.zoomfactor));
+                this.height = Math.round(this.base_height * this.apply_multiplicator(zd.zoomfactor));
+                this.x = Math.round(this.base_x * this.apply_multiplicator(zd.zoomfactor) + this.apply_multiplicator(zd.x));
+                this.y = Math.round(this.base_y * this.apply_multiplicator(zd.zoomfactor) + this.apply_multiplicator(zd.y));
 
-            } else {
-
-                obj.base_x = param_obj.x || 0;
-                obj.base_y = param_obj.y || 0;
-                obj.base_width = param_obj.width || 0;
-                obj.base_height = param_obj.height || 0;
-
-                obj.x = param_obj.x || 0;
-                obj.y = param_obj.y || 0;
-                obj.width = param_obj.width || 0;
-                obj.height = param_obj.height || 0;
-
-                obj.update_zoom_values = function () {
-                    this.width = Math.round(this.base_width * zd.zoomfactor);
-                    this.height = Math.round(this.base_height * zd.zoomfactor);
-                    this.x = Math.round(this.base_x * zd.zoomfactor + zd.x);
-                    this.y = Math.round(this.base_y * zd.zoomfactor + zd.y);
-                }
+                this.update_percent_values();
 
             }
 
@@ -368,6 +466,9 @@ function create_zoomdata(target_element, options = {}) {
             zd.objects.push(obj);
             if (param_obj.auto_update != false) {
                 zd.objects_to_update.push(obj);
+                if (obj.variable_x || obj.variable_y || obj.variable_width || obj.variable_height) {
+                    zd.resize_sensitive_objects.push(obj);
+                }
             }
 
             return obj;
@@ -380,7 +481,12 @@ function create_zoomdata(target_element, options = {}) {
             }
         },
 
-        onupdate: function () {}
+        onupdate: function () { },
+        onresizeowner: function () { },
+        onzoomkeydown: function () { },
+        onzoomkeyup: function () { },
+        ondragkeydown: function () { },
+        ondragkeyup: function () { },
 
     }
 

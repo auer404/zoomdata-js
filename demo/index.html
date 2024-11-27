@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="demo.css">
+    <title>zoomdata.js - Demo</title>
+</head>
+
+<body>
+
+    <section>
+
+        <div id="intro_container">
+
+            <div class="vertical-dash no-zoom" data-pos="12.5"></div>
+            <div class="vertical-dash" data-pos="25"></div>
+            <div class="vertical-dash no-zoom" data-pos="37.5"></div>
+            <div class="vertical-dash" data-pos="50"></div>
+            <div class="vertical-dash no-zoom" data-pos="62.5"></div>
+            <div class="vertical-dash" data-pos="75"></div>
+            <div class="vertical-dash no-zoom" data-pos="87.5"></div>
+
+            <div class="horizontal-dash no-zoom" data-pos="12.5"></div>
+            <div class="horizontal-dash" data-pos="25"></div>
+            <div class="horizontal-dash no-zoom" data-pos="37.5"></div>
+            <div class="horizontal-dash" data-pos="50"></div>
+            <div class="horizontal-dash no-zoom" data-pos="62.5"></div>
+            <div class="horizontal-dash" data-pos="75"></div>
+            <div class="horizontal-dash no-zoom" data-pos="87.5"></div>
+
+            <div id="intro_circle">
+                zoomdata.js
+                <small>A JavaScript library to help making thinks zoomable</small>
+            </div>
+
+        </div>
+
+    </section>
+
+    <section>
+
+        <div class="txt_column">
+
+            <h2>Basic usage :</h2>
+
+            <h3>HTML</h3>
+
+            <pre><code>&lt;div id="container"&gt;
+    &lt;div id="child"&gt;&lt;/div&gt;
+&lt;/div&gt;</code></pre>
+
+            <h3>CSS</h3>
+
+            <pre><code>#container {
+    position:relative; 
+    overflow:hidden; user-select:none;
+    <span class="comment">/* + width, height */</span>
+}
+
+#child {
+    position:absolute;
+}</code></pre>
+
+            <h3>JS</h3>
+
+            <pre><code>let zd = create_zoomdata( document.querySelector("#container") );
+
+let child = document.querySelector("#child");
+
+zd.register_object({
+    attach_to: child,
+    x: 100,
+    y: 100,
+    width: 200,
+    height: 200
+});
+
+zd.onupdate = function(){
+    child.style.left = child.zoomdata.x + "px";
+    child.style.top = child.zoomdata.y + "px";
+    child.style.width = child.zoomdata.width + "px";
+    child.style.height = child.zoomdata.height + "px";
+} <span class="comment">// will be fired after every zoom or move...</span>
+
+<span class="comment">// ...but should be called manually to "draw" the initial state :</span>
+zd.onupdate();</code></pre>
+
+        </div>
+
+        <div class="example_container" id="example01">
+            #container (mousewheel to zoom)
+            <div class="child">#child</div>
+        </div>
+
+    </section>
+
+    <section>
+        <div class="txt_column">
+            <h2>More to come - doc under construction</h2>
+        </div>
+    </section>
+
+    <script src="../zoomdata.js"></script>
+
+    <script src="demo.js"></script>
+
+</body>
+
+</html>
