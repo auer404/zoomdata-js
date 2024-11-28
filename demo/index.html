@@ -255,6 +255,36 @@ zd.onupdate = function(){
 
     </section>
 
+    <section class="single_col">
+
+        <div>
+
+            <h2>Options : create_zoomdata()</h2>
+
+            <pre><code><span class="comment">// Default values for (optional) second argument</span>
+
+create_zoomdata(
+    target_HTML_element,
+    <b>{
+        max_zoomfactor: 2, <span class="comment">// number > 1</span>
+        auto_drag_cursor: false, <span class="comment">// true / false</span>
+        auto_zoom_cursor: false, <span class="comment">// true / false</span>
+        zoom_key: false, <span class="comment">// string key or keycode / false</span>
+        drag_key: false, <span class="comment">// string key or keycode / false</span>
+        allow_drag: true, <span class="comment">// true / false</span>
+        auto_update_objects: true, <span class="comment">// true / false</span>
+        zoom_on_mousewheel: true, <span class="comment">// true / false</span>
+        mouse_based_zoom_origin: true, <span class="comment">// true / false</span>
+        prevent_scroll_on_mousewheel: true <span class="comment">// true / "always" / false</span>
+    }</b>
+);
+
+            </code></pre>
+
+        </div>
+
+    </section>
+
     <script src="../zoomdata.js"></script>
 
     <script src="demo.js"></script>
