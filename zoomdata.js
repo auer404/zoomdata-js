@@ -11,16 +11,19 @@ function create_zoomdata(target_element, options = {}) {
         mouse_x: 0, mouse_y: 0,
         zoom_origin_x: 0, zoom_origin_y: 0,
         relative_zoom_origin_x: 0, relative_zoom_origin_y: 0,
-        dezoom_origin_x: 0, dezoom_origin_y: 0,
-        relative_dezoom_origin_x: 0, relative_dezoom_origin_y: 0,
+        zoomout_origin_x: 0, zoomout_origin_y: 0,
+        relative_zoomout_origin_x: 0, relative_zoomout_origin_y: 0,
         zoom_timeout: false,
         mouse_down: false, drag_key_down: false, zoom_key_down: false,
         dragstart_mouse_x: 0, dragstart_mouse_y: 0,
         dragstart_x: 0, dragstart_y: 0,
         objects: [], objects_to_update: [], resize_sensitive_objects: [],
+        scroll_lock: false,
+        mousewheel_triggered: false, mousewheel_cooldown_timeout: false,
         options: options,
 
         setup: function () {
+
             this.height = this.owner.getBoundingClientRect().height * this.zoomfactor;
             this.width = this.owner.getBoundingClientRect().width * this.zoomfactor;
 
@@ -44,42 +47,61 @@ function create_zoomdata(target_element, options = {}) {
                 }
             }.bind(this));
 
-            if (this.options.zoom_on_mousewheel != false) {
-                this.owner.addEventListener("mousewheel", function (e) {
+            this.owner.addEventListener("wheel", function (e) {
+                if (this.zoomdata.options.zoom_on_mousewheel != false) {
 
                     if (this.zoomdata.mouse_x <= this.zoomdata.x || this.zoomdata.mouse_y <= this.zoomdata.y) {
                         return;
                     }
 
+                    clearTimeout(zd.mousewheel_cooldown_timeout);
+                    zd.mousewheel_triggered = true;
+                    zd.mousewheel_cooldown_timeout = setTimeout(function () {
+                        zd.mousewheel_triggered = false;
+                        zd.scroll_lock = false;
+                    }, 250);
+
                     zd.update_mouse_xy.bind(zd)(e);
 
                     if (zd.zoom_key_down || !zd.options.zoom_key) {
                         if (zd.zoom(zd.zoomfactor + e.deltaY * -0.05) && zd.options.prevent_scroll_on_mousewheel != false) {
-                            e.preventDefault();
-                        }
-                        if (zd.options.prevent_scroll_on_mousewheel == "always") {
-                            e.preventDefault();
+                            zd.scroll_lock = true;
                         }
                     }
-
-                });
-            }
+                    if (zd.scroll_lock || zd.options.prevent_scroll_on_mousewheel == "always") {
+                        e.preventDefault();
+                    }
+                }
+            });
 
             this.owner.addEventListener("mousedown", function () {
                 zd.mouse_down = true;
                 if (zd.options.allow_drag != false && (zd.drag_key_down || !zd.options.drag_key)) {
                     zd.refresh_drag_coords();
-                    zd.auto_cursor("grabbing", "drag");
+                    if (zd.zoomfactor > 1) {
+                        zd.auto_cursor("grabbing", "drag");
+                    }
                 }
             });
 
             window.addEventListener("mouseup", function () {
                 zd.mouse_down = false;
-                if (zd.drag_key_down) {
-                    zd.auto_cursor("grab", "drag");
+                if (zd.zoomfactor > 1 && zd.options.allow_drag != false) {
+                    if (zd.drag_key_down) {
+                        zd.auto_cursor("grab", "drag");
+                    } else {
+                        if (zd.options.auto_notallowed_cursor == "revert" || (zd.options.auto_nnotallowed_cursor == undefined && zd.options.drag_key == undefined)) {
+                            zd.auto_cursor("", "drag");
+                        } else if (zd.options.auto_notallowed_cursor == "always" || (zd.options.auto_notallowed_cursor != false && options.auto_notallowed_cursor != "revert" && zd.options.drag_key != false && zd.options.drag_key != undefined)) {
+                            zd.auto_cursor("not-allowed", "drag");
+                        }
+                    }
                 } else {
-                    zd.auto_cursor("", "drag");
+                    if (zd.drag_key_down || !zd.drag_key) {
+                        zd.auto_cursor("", "drag", true);
+                    }
                 }
+
             }
             );
 
@@ -92,17 +114,27 @@ function create_zoomdata(target_element, options = {}) {
                 window.addEventListener("keydown", function (e) {
                     if (e.code == zd.options.drag_key || e.key == zd.options.drag_key) {
                         zd.drag_key_down = true;
-                        if (!zd.mouse_down) {
-                            zd.auto_cursor("grab", "drag");
+                        if (zd.zoomfactor > 1) {
+                            if (!zd.mouse_down) {
+                                zd.auto_cursor("grab", "drag");
+                            } else {
+                                zd.auto_cursor("grabbing", "drag");
+                                zd.refresh_drag_coords();
+                            }
                         } else {
-                            zd.auto_cursor("grabbing", "drag");
-                            zd.refresh_drag_coords();
+                            if (zd.options.auto_notallowed_cursor == "revert") {
+                                zd.auto_cursor("", "drag");
+                            } else if (zd.options.auto_notallowed_cursor == "always" || (zd.options.auto_notallowed_cursor != false && options.auto_notallowed_cursor != "revert" && zd.options.drag_key != false)) {
+                                zd.auto_cursor("not-allowed", "drag", true);
+                            }
                         }
                         zd.ondragkeydown();
                     }
                     if (e.code == zd.options.zoom_key || e.key == zd.options.zoom_key) {
                         zd.zoom_key_down = true;
-                        zd.auto_cursor("zoom-in", "zoom");
+                        if (!zd.mousewheel_triggered) {
+                            zd.auto_cursor("zoom-in", "zoom");
+                        }
                         zd.onzoomkeydown();
                     }
                 });
@@ -110,36 +142,39 @@ function create_zoomdata(target_element, options = {}) {
                 window.addEventListener("keyup", function (e) {
                     if (e.code == zd.options.drag_key || e.key == zd.options.drag_key) {
                         zd.drag_key_down = false;
-                        zd.auto_cursor("", "drag");
+                        zd.auto_cursor("", "drag", true);
                         zd.ondragkeyup();
                     }
                     if (e.code == zd.options.zoom_key || e.key == zd.options.zoom_key) {
                         zd.zoom_key_down = false;
-                        zd.auto_cursor("", "zoom");
+                        zd.auto_cursor("", "zoom", true);
                         zd.onzoomkeyup();
                     }
                 });
 
             }
 
-            if (this.options.allow_drag != false) {
+            this.owner.addEventListener("mousemove", function () {
 
-                this.owner.addEventListener("mousemove", function () {
+                if (zd.options.allow_drag != false && zd.mouse_down && (zd.drag_key_down || !zd.options.drag_key)) {
 
-                    if (zd.mouse_down && (zd.drag_key_down || !zd.options.drag_key)) {
+                    let distance_x = zd.mouse_x - zd.dragstart_mouse_x;
+                    let distance_y = zd.mouse_y - zd.dragstart_mouse_y;
 
-                        let distance_x = zd.mouse_x - zd.dragstart_mouse_x;
-                        let distance_y = zd.mouse_y - zd.dragstart_mouse_y;
+                    let new_x = zd.dragstart_x + distance_x;
+                    let new_y = zd.dragstart_y + distance_y;
 
-                        let new_x = zd.dragstart_x + distance_x;
-                        let new_y = zd.dragstart_y + distance_y;
+                    zd.move_to(new_x, new_y, zd.refresh_drag_coords);
 
-                        zd.move_to(new_x, new_y, zd.refresh_drag_coords);
-
+                    if (zd.zoomfactor <= 1) {
+                        if (zd.options.auto_notallowed_cursor == "always" || zd.options.auto_notallowed_cursor != false && options.auto_notallowed_cursor != "revert") {
+                            zd.auto_cursor("not-allowed", "drag", true);
+                        }
                     }
-                });
 
-            }
+                }
+            });
+
 
             new ResizeObserver(function () {
 
@@ -160,10 +195,10 @@ function create_zoomdata(target_element, options = {}) {
 
         set_zoom_origin: function (x = false, y = false) {
             if (x !== false) {
-                this.zoom_origin_x = x;
+                this.zoom_origin_x = this.check_percent(x, this.owner.getBoundingClientRect().width).pixels;
             }
             if (y !== false) {
-                this.zoom_origin_y = y;
+                this.zoom_origin_y = this.check_percent(y, this.owner.getBoundingClientRect().height).pixels;
             }
             if (x !== false || y !== false) {
                 this.update_relative_zoom_origin_xy();
@@ -199,12 +234,12 @@ function create_zoomdata(target_element, options = {}) {
             this.relative_zoom_origin_y = (this.zoom_origin_y - this.y) / this.height;
         },
 
-        update_dezoom_origin_xy: function () {
+        update_zoomout_origin_xy: function () {
 
-            this.dezoom_origin_x = (- this.x * this.owner.getBoundingClientRect().width) / (this.width - this.owner.getBoundingClientRect().width) || 0;
-            this.dezoom_origin_y = (- this.y * this.owner.getBoundingClientRect().height) / (this.height - this.owner.getBoundingClientRect().height) || 0;
-            this.relative_dezoom_origin_x = (this.dezoom_origin_x - this.x) / this.width || 0;
-            this.relative_dezoom_origin_y = (this.dezoom_origin_y - this.y) / this.height || 0;
+            this.zoomout_origin_x = (- this.x * this.owner.getBoundingClientRect().width) / (this.width - this.owner.getBoundingClientRect().width) || 0;
+            this.zoomout_origin_y = (- this.y * this.owner.getBoundingClientRect().height) / (this.height - this.owner.getBoundingClientRect().height) || 0;
+            this.relative_zoomout_origin_x = (this.zoomout_origin_x - this.x) / this.width || 0;
+            this.relative_zoomout_origin_y = (this.zoomout_origin_y - this.y) / this.height || 0;
         },
 
         update_zoomfactor: function (value) {
@@ -245,10 +280,10 @@ function create_zoomdata(target_element, options = {}) {
 
             } else {
 
-                origin_x = this.dezoom_origin_x;
-                origin_y = this.dezoom_origin_y;
-                rel_origin_x = this.relative_dezoom_origin_x;
-                rel_origin_y = this.relative_dezoom_origin_y;
+                origin_x = this.zoomout_origin_x;
+                origin_y = this.zoomout_origin_y;
+                rel_origin_x = this.relative_zoomout_origin_x;
+                rel_origin_y = this.relative_zoomout_origin_y;
 
             }
 
@@ -268,7 +303,7 @@ function create_zoomdata(target_element, options = {}) {
             }
 
             this.update_relative_zoom_origin_xy();
-            this.update_dezoom_origin_xy();
+            this.update_zoomout_origin_xy();
 
         },
 
@@ -295,6 +330,16 @@ function create_zoomdata(target_element, options = {}) {
                 this.update_objects();
                 this.onupdate();
                 return true;
+            } else {
+                if (zd.options.auto_notallowed_cursor == "revert") {
+                    zd.auto_cursor("", "zoom");
+                } else if (zd.options.auto_notallowed_cursor == "always" || (zd.options.auto_notallowed_cursor != false && (zd.options.auto_notallowed_cursor != undefined || zd.options.auto_zoom_cursor === true) && options.auto_notallowed_cursor != "revert" && zd.options.zoom_key != false)) {
+
+                    zd.auto_cursor("not-allowed", "zoom", true);
+                    this.zoom_timeout = setTimeout(function () {
+                        zd.auto_cursor("", "zoom", true);
+                    }, 250);
+                }
             }
             return false;
         },
@@ -337,7 +382,7 @@ function create_zoomdata(target_element, options = {}) {
             }
 
             this.update_relative_zoom_origin_xy();
-            this.update_dezoom_origin_xy();
+            this.update_zoomout_origin_xy();
 
             if (this.x != previous_x || this.y != previous_y) {
                 this.update_objects();
@@ -362,9 +407,9 @@ function create_zoomdata(target_element, options = {}) {
 
         },
 
-        auto_cursor: function (cursor_name, context) {
+        auto_cursor: function (cursor_name, context, force = false) {
 
-            if (this.options["auto_" + context + "_cursor"] === true) {
+            if (this.options["auto_" + context + "_cursor"] === true || force === true) {
                 this.owner.style.cursor = cursor_name;
             }
 
@@ -454,8 +499,8 @@ function create_zoomdata(target_element, options = {}) {
 
             }
 
-            obj.zoomed = function(value) {
-                return zd.zoomed(value);
+            obj.zoomed = function (value = 1) {
+                return this.apply_multiplicator(zd.zoomfactor) * value;
             }
 
             if (param_obj.attach_to) {
